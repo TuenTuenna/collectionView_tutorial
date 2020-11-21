@@ -56,6 +56,10 @@
                         </constraints>
                     </view>
                     <navigationItem key="navigationItem" id="IIt-He-P4g"/>
+                    <connections>
+                        <outlet property="navToCollectionVCBtn" destination="mdY-6f-yxF" id="kdr-dD-UsS"/>
+                        <outlet property="navToTableVCBtn" destination="zWd-G3-eBx" id="dh3-xs-3Z2"/>
+                    </connections>
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="rl2-Rg-adM" userLabel="First Responder" customClass="UIResponder" sceneMemberID="firstResponder"/>
             </objects>
