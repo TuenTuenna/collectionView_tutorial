@@ -7,12 +7,24 @@
 //
 
 import UIKit
+import ViewAnimator
 
 let MY_TABLE_VIEW_CELL_ID = "myTableViewCell"
 
 class MyTableVC: UIViewController {
 
     @IBOutlet weak var myTableView: UITableView!
+    
+    
+    // 임시배열
+    var tempArray : [Any] = []
+    
+    // 아래에서 위로 올라오는 애니메이션 배열
+    private let animations = [
+        AnimationType.vector(CGVector(dx: 0, dy: 50)),
+//        AnimationType.zoom(scale: 0.8),
+//        AnimationType.rotate(angle: CGFloat.pi/2)
+    ]
     
     let contentArray = [
         "simply dummy text of the printing and",
@@ -37,10 +49,6 @@ class MyTableVC: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         print("ViewController - viewDidLoad() called")
-        // Do any additional setup after loading the view.
-        
-        // 쎌 리소스 파일 가져오기
-//        let myTableViewCellNib = UINib(nibName: String(describing: MyTableViewCell.self), bundle: nil)
         
         let myTableViewCellNib = UINib(nibName: String(describing: MyTableViewCell.self), bundle: nil)
         
@@ -52,28 +60,88 @@ class MyTableVC: UIViewController {
         
         self.myTableView.delegate = self
         self.myTableView.dataSource = self
-        
-        // hide extra blank rows
-//        self.myTableView.tableFooterView = UIView()
-        
+
         print("contentArray.count : \(contentArray.count)")
+        
+        // 리프레시 컨트롤 테이블뷰에 달기
+        let refreshControl = UIRefreshControl()
+        
+        refreshControl.tintColor = #colorLiteral(red: 0.9372549057, green: 0.3490196168, blue: 0.1921568662, alpha: 1)
+        
+        refreshControl.addTarget(self, action: #selector(handleRefresh), for: .valueChanged)
+        
+        let boldFont = UIFont.boldSystemFont(ofSize: 20)
+        let attributes : [NSAttributedString.Key : Any] = [
+            .font : boldFont,
+            .foregroundColor : UIColor.init(cgColor: #colorLiteral(red: 0.9372549057, green: 0.3490196168, blue: 0.1921568662, alpha: 1))
+        ]
+        
+        refreshControl.attributedTitle = NSAttributedString(string: "땡겨요~!", attributes: attributes)
+        
+        self.myTableView.refreshControl = refreshControl
+        
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: {
+            [weak self] in
+            guard let self = self else { return }
+            // 테이블뷰와 연결된 데이터 변경
+            self.tempArray = self.contentArray
+            
+            // 테이블뷰의 UI 갱신
+            self.myTableView.reloadData()
+            
+            // 애니메이션 돌리기
+            UIView.animate(views: self.myTableView.visibleCells,
+                           animations: self.animations)
+        })
+        
+        
+        
+        
+    } // viewDidLoad()
+
+    
+    @objc fileprivate func handleRefresh(sender: AnyObject){
+        print("MyTableVC - handleRefresh() called")
+        
+        // 기존 데이터 지우기
+        self.tempArray.removeAll()
+        
+        // 사라지는 애니메이션 처리
+        UIView.animate(views: self.myTableView.visibleCells, // 애니메이션을 적용할 뷰들
+                       animations: self.animations, // 적용할 애니메이션
+                       reversed: true,
+                       initialAlpha: 1.0, // 보이다가
+                       finalAlpha: 0.0, // 안보이게
+                       completion: {
+                        self.myTableView.reloadData() // 테이블뷰 UI 갱신
+        })
+        self.myTableView.refreshControl?.endRefreshing()
+        
+        //TODO: - API 땡겨서 데이터 가져오기
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1, execute: { [weak self] in
+            guard let self = self else { return }
+            
+            // 진동주기
+            let vibrate = UIImpactFeedbackGenerator(style: .light)
+            vibrate.impactOccurred()
+            
+            // 테이블뷰와 연결된 데이터 변경
+            self.tempArray = self.contentArray
+            // 테이블뷰의 UI 갱신
+            self.myTableView.reloadData()
+            // 애니메이션 돌리기
+            UIView.animate(views: self.myTableView.visibleCells,
+                           animations: self.animations,
+                           reversed: false,
+                           initialAlpha: 0.0,
+                           finalAlpha: 1.0,
+//                           options: [.curveLinear],
+                           completion: nil)
+        })
         
     }
 
-    
-//    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-//        return self.contentArray.count
-//       }
-//
-//       func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-//
-//           let cell = myTableView.dequeueReusableCell(withIdentifier: MY_TABLE_VIEW_CELL_ID, for: indexPath) as! MyTableViewCell
-//
-//           cell.contentLabel.text = contentArray[indexPath.row]
-//
-//           return cell
-//       }
-       
 
 }
 
@@ -86,14 +154,18 @@ extension MyTableVC: UITableViewDelegate {
 
 extension MyTableVC: UITableViewDataSource {
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return self.contentArray.count
+        return self.tempArray.count
     }
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
 
         let cell = myTableView.dequeueReusableCell(withIdentifier: MY_TABLE_VIEW_CELL_ID, for: indexPath) as! MyTableViewCell
-
-        cell.contentLabel.text = contentArray[indexPath.row]
+        
+        
+        if tempArray.count > 0 {
+            cell.contentLabel.text = tempArray[indexPath.row] as? String
+        }
+        
 
         return cell
     }

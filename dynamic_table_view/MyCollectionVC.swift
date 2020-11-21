@@ -8,12 +8,24 @@
 
 import Foundation
 import UIKit
+import ViewAnimator
+
 
 class MyCollectionVC: UIViewController {
     
     
     @IBOutlet var mySegmentControl: UISegmentedControl!
     @IBOutlet var myCollectionView: UICollectionView!
+    
+    // 임시배열
+    var tempArray : [Any] = []
+    
+    // 아래에서 위로 올라오는 애니메이션 배열
+    private let animations = [
+        AnimationType.vector(CGVector(dx: 0, dy: 50)),
+//        AnimationType.zoom(scale: 0.8),
+//        AnimationType.rotate(angle: CGFloat.pi/2)
+    ]
     
     fileprivate let systemImageNameArray = [
         "moon", "zzz", "sparkles", "cloud", "tornado", "smoke.fill", "tv.fill", "gamecontroller", "headphones", "flame", "bolt.fill", "hare", "tortoise", "moon", "zzz", "sparkles", "cloud", "tornado", "smoke.fill", "tv.fill", "gamecontroller", "headphones", "flame", "bolt.fill", "hare", "tortoise", "ant", "hare", "car", "airplane", "heart", "bandage", "waveform.path.ecg", "staroflife", "bed.double.fill", "signature", "bag", "cart", "creditcard", "clock", "alarm", "stopwatch.fill", "timer"
@@ -32,9 +44,7 @@ class MyCollectionVC: UIViewController {
         myCollectionView.dataSource = self
         myCollectionView.delegate = self
         
-        // 사용할 콜렉션뷰 쎌을 등록
-        //
-//        let myCustomCollectionViewCellNib = UINib(nibName: "MyCustomCollectionViewCell", bundle: nil)
+    
         // 닙파일을 가져온다
         let myCustomCollectionViewCellNib = UINib(nibName: String(describing: MyCustomCollectionViewCell.self), bundle: nil)
         
@@ -43,7 +53,86 @@ class MyCollectionVC: UIViewController {
         
         // 콜렉션뷰의 콜렉션뷰 레이아웃을 설정한다.
         self.myCollectionView.collectionViewLayout = createCompositionalLayoutForFirst()
+     
         
+        // 리프레시 컨트롤 테이블뷰에 달기
+        let refreshControl = UIRefreshControl()
+        
+        refreshControl.tintColor = #colorLiteral(red: 0.9372549057, green: 0.3490196168, blue: 0.1921568662, alpha: 1)
+        
+        refreshControl.addTarget(self, action: #selector(handleRefresh), for: .valueChanged)
+        
+        let boldFont = UIFont.boldSystemFont(ofSize: 20)
+        let attributes : [NSAttributedString.Key : Any] = [
+            .font : boldFont,
+            .foregroundColor : UIColor.init(cgColor: #colorLiteral(red: 0.9372549057, green: 0.3490196168, blue: 0.1921568662, alpha: 1))
+        ]
+        
+        refreshControl.attributedTitle = NSAttributedString(string: "땡겨요~!", attributes: attributes)
+        
+        self.myCollectionView.refreshControl = refreshControl
+        
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: {
+            [weak self] in
+            guard let self = self else { return }
+            // 테이블뷰와 연결된 데이터 변경
+            self.tempArray = self.systemImageNameArray
+            
+            // 테이블뷰의 UI 갱신
+            self.myCollectionView.reloadData()
+            
+            self.myCollectionView.performBatchUpdates({
+                // 애니메이션 돌리기
+                UIView.animate(views: self.myCollectionView.orderedVisibleCells,
+                               animations: self.animations)
+            }, completion: nil)
+            
+           
+        })
+        
+    } // viewDidLoad()
+    
+    
+    @objc fileprivate func handleRefresh(sender: AnyObject){
+        print("MyCollectionVC - handleRefresh() called")
+        // 기존 데이터 지우기
+        self.tempArray.removeAll()
+        // 사라지는 애니메이션 처리
+        UIView.animate(views: self.myCollectionView.orderedVisibleCells,
+                       animations: self.animations,
+                       reversed: true, // 애니메이션 반전
+                       initialAlpha: 1.0, // 처음에는 보였다가
+                       finalAlpha: 0.0, // 끝에 안보임,
+                       options: [.curveEaseIn],
+                       completion: {
+                        self.myCollectionView.reloadData()
+                       })
+        self.myCollectionView.refreshControl?.endRefreshing()
+        
+        //TODO: - API 땡겨서 데이터 가져오기
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1, execute: { [weak self] in
+            guard let self = self else { return }
+            
+            // 진동주기
+            let vibrate = UIImpactFeedbackGenerator(style: .light)
+            vibrate.impactOccurred()
+            
+            // 콜렉션뷰와 연결된 데이터 변경
+            self.tempArray = self.systemImageNameArray
+            // 콜렉션뷰의 UI 갱신
+            self.myCollectionView.reloadData()
+            self.myCollectionView.performBatchUpdates({
+                // 애니메이션 돌리기
+                UIView.animate(views: self.myCollectionView.orderedVisibleCells,
+                               animations: self.animations,
+                               reversed: false,
+                               initialAlpha: 0.0,
+                               finalAlpha: 1.0,
+    //                           options: [.curveLinear],
+                               completion: nil)
+            }, completion: nil)
+        })
     }
 
     
@@ -197,31 +286,17 @@ extension MyCollectionVC: UICollectionViewDataSource {
     
     // 각 섹션에 들어가는 아이템 갯수
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        return self.systemImageNameArray.count
+        return self.tempArray.count
     }
     
     // 각 콜렉션뷰 쎌에 대한 설정
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-        
-//        let cellId = String(describing: MyCollectionViewCell.self)
-//        print("cellId : \(cellId)")
-        
-        // 쎌의 인스턴스
-//        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: cellId, for: indexPath) as! MyCollectionViewCell
+
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: String(describing: MyCustomCollectionViewCell.self), for: indexPath) as! MyCustomCollectionViewCell
         
-        cell.imageName = self.systemImageNameArray[indexPath.item]
-        
-//        cell.contentView.backgroundColor = #colorLiteral(red: 0.9764705896, green: 0.850980401, blue: 0.5490196347, alpha: 1)
-//        cell.contentView.layer.cornerRadius = 8
-//        cell.contentView.layer.borderWidth = 1
-//        cell.contentView.layer.borderColor = #colorLiteral(red: 0.3647058904, green: 0.06666667014, blue: 0.9686274529, alpha: 1)
-        
-        // 데이터에 따른 쎌 UI 변경
-        // 이미지에 대한 설정
-//        cell.profileImg.image = UIImage(systemName: self.systemImageNameArray[indexPath.item])
-//        // 라벨 설정
-//        cell.profileLabel.text = self.systemImageNameArray[indexPath.item]
+        if self.tempArray.count > 0 {
+            cell.imageName = self.tempArray[indexPath.item] as! String
+        }
         
         return cell
     }
